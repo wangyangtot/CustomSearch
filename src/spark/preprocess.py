@@ -60,8 +60,8 @@ class preprocessor ( object ) :
                     html = record.raw_stream.read ( )
                     if html :
                         plainText = self.removeBolerplate ( html )
-                        # if plainText and isDesiredLanguage ( plainText , DESIRED_LANGUAGE ):
-                        # print(plainText)
+                        if plainText and isDesiredLanguage ( plainText , DESIRED_LANGUAGE ):
+                            print(plainText)
 
 
 
