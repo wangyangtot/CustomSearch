@@ -1,18 +1,19 @@
 from warcio.archiveiterator import ArchiveIterator
+
 from langdetect import detect
 import justext
 
 
 
 class preprocessor ( object ) :
-
-    DESIRED_LANGUAGE = 'en'
-    ALLOWED_CONTENT_TYPES = {"application/http; msgtype=response" , "message/http"}
+    def __init__(self):
+        self.DESIRED_LANGUAGE = 'en'
+        self.self.ALLOWED_CONTENT_TYPES = {"application/http; msgtype=response" , "message/http"}
 
     def ignoreWARCRecord(self,record) :
         # print ( record.rec_type )
         # print ( record.content_type )
-        #print ( record.length )
+        print ( record.length )
 
         if record.rec_type != 'response' :
             return True
@@ -56,18 +57,16 @@ class preprocessor ( object ) :
         with open ( path_to_files , 'rb' ) as stream :
             for record in ArchiveIterator ( stream ) :
                 if not self.ignoreWARCRecord ( record ) :
-                    html = record.raw_stream.read()
-                    #print ( html )
+                    html = record.raw_stream.read ( )
                     if html :
                         plainText = self.removeBolerplate ( html )
-                        url=record.rec_headers.get_header ( 'WARC-Target-URI' )
-                        if plainText and self.isDesiredLanguage ( plainText , self.DESIRED_LANGUAGE ):
+                        if plainText and isDesiredLanguage ( plainText , DESIRED_LANGUAGE ):
                             print(plainText)
 
 
 
 if __name__ == '__main__' :
-    path_to_files = '/usr/local/spark/crawl-data/CC-MAIN-2017-13/segments/1490218186353.38/warc/' \
+    path_to_files = '/home/ubuntu/cc-pyspark/crawl-data/CC-MAIN-2017-13/segments/1490218186353.38/warc/' \
                     'CC-MAIN-20170322212946-00000-ip-10-233-31-227.ec2.internal.warc.gz'
     pre=preprocessor()
     pre.getWARCRecord ( path_to_files )
