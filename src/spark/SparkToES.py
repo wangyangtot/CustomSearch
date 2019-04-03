@@ -5,16 +5,17 @@ import re
 import ujson as json
 from io import BytesIO
 from tempfile import TemporaryFile
-
 import boto3
 import botocore
-
 from warcio.archiveiterator import ArchiveIterator
 from warcio.recordloader import ArchiveLoadFailed
 from pyspark import SparkContext , SparkConf
 from elasticsearch import Elasticsearch , helpers
 from langdetect import detect
 import justext
+from simhash import Simhash,SimhashIndex
+import redis
+from __future__ import division, unicode_literals
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
@@ -46,8 +47,7 @@ class CCSparkJob ( object ) :
     DESIRED_LANGUAGE = 'en'
     ES_INDEX = 'commoncrawl'
     ES_TYPE = 'plainDoc'
-
-
+    k=3
 
     def parse_arguments(self) :
         """ Returns the parsed arguments from the command line """
@@ -142,9 +142,32 @@ class CCSparkJob ( object ) :
             appName = self.name ,
             conf = conf )
 
+        ES_hosts = 'ec2-52-34-223-218.us-west-2.compute.amazonaws.com'
+        ES_user = 'elastic'
+        ES_password = 'elasticdevpass'
+
+        es = Elasticsearch ( host = ES_hosts , http_auth = (ES_user , ES_password) ,
+                             verify_certs = False )
+        if not es.indices.exists ( self.ES_INDEX ) :
+            es_mapping = {self.ES_TYPE : {"properties" :
+                                              {"doc" : {"type" : "text" , "similarity" : "BM25" ,
+                                                        "analyzer" : "english"} ,
+                                               "url" : {"type" : "text" , "index" : "not_analyzed"}}
+                                          }
+                          }
+            es_settings = {'number_of_shards' : 4 , 'number_of_replicas' : 0 , 'refresh_interval' : '1s' ,
+                           'index.translog.flush_threshold_size' : '1gb'}
+            response = es.indices.create ( index = self.ES_INDEX ,
+                                           body = {'settings' : es_settings , 'mappings' : es_mapping} )
+
+        redis_host = '10.0.0.7'
+        redis_port = 6379
+        redis_password = 'AhrIykRVjO9GHA52kmYou7iUrsDbzJL+/7vjeTYhsLmpskyAY8tnucf4QJ7FpvVzFNNKuIZVVkh1LRxF'
+        redisClient = redis.Redis ( host = redis_host , port = redis_port , password = redis_password )
+
         self.init_accumulators ( sc )
 
-        self.run_job ( sc )
+        self.run_job ( sc ,es,redisClient)
 
         sc.stop ( )
 
@@ -171,34 +194,17 @@ class CCSparkJob ( object ) :
 
 
 
-    def run_job(self , sc) :
-        ES_hosts = 'ec2-52-34-223-218.us-west-2.compute.amazonaws.com'
-        ES_user = 'elastic'
-        ES_password = 'elasticdevpass'
+    def run_job(self , sc,es,redisClient) :
         input_data = sc.textFile ( self.args.input ,
                                    minPartitions = self.args.num_input_partitions )
         ES_RESOURCE = '/'.join ( [ self.ES_INDEX , self.ES_TYPE ] )
-        es = Elasticsearch ( host = ES_hosts , http_auth = (ES_user , ES_password) ,
-                             verify_certs = False )
-        if not es.indices.exists ( self.ES_INDEX ) :
-            es_mapping = {self.ES_TYPE : {"properties" :
-                                              {"doc" : {"type" : "text" , "similarity" : "BM25" ,
-                                                        "analyzer" : "english"} ,
-                                               "url" : {"type" : "text" , "index" : "not_analyzed"}}
-                                          }
-                          }
-            es_settings = {'number_of_shards' : 4 , 'number_of_replicas' : 0 , 'refresh_interval' : '1s' ,
-                           'index.translog.flush_threshold_size' : '1gb'}
-            response = es.indices.create ( index = self.ES_INDEX ,
-                                           body = {'settings' : es_settings , 'mappings' : es_mapping} )
-
         es_conf = {'es.nodes' : 'ec2-52-34-223-218.us-west-2.compute.amazonaws.com' ,
                    'es.resource' : ES_RESOURCE ,
                    'es.port' : '9200' , 'es.net.http.auth.user' : 'elastic' ,
                    'es.net.http.auth.pass' : 'elasticdevpass' ,
                    'es.nodes.wan.only' : 'true' ,
                    'es.input.json' : 'yes'}
-        input_data.mapPartitionsWithIndex ( self.process_warcs ) \
+        input_data.mapPartitionsWithIndex (self.process_warcs ) \
             .saveAsNewAPIHadoopFile ( path = '-' , \
                                       outputFormatClass = 'org.elasticsearch.hadoop.mr.EsOutputFormat' , \
                                       keyClass = 'org.apache.hadoop.io.NullWritable' , \
@@ -208,7 +214,7 @@ class CCSparkJob ( object ) :
 
 
 
-    def process_warcs(self , id_ , iterator) :
+    def process_warcs(self ,redisClient, id_ , iterator) :
         s3pattern = re.compile ( '^s3://([^/]+)/(.+)' )
         base_dir = os.path.abspath ( os.path.dirname ( __file__ ) )
 
@@ -259,7 +265,7 @@ class CCSparkJob ( object ) :
             try :
                 for record in ArchiveIterator ( stream ,
                                                 no_record_parse = no_parse ) :
-                    for res in self.process_record ( record ) :
+                    for res in self.process_record ( record ,redisClient) :
                         yield res
                     self.records_processed.add ( 1 )
             except ArchiveLoadFailed as exception :
@@ -311,15 +317,59 @@ class CCSparkJob ( object ) :
 
 
 
-    def process_record(self , record) :
+    def offsets(self) :
+        """
+        You may optimize this method according to <http://www.wwwconference.org/www2007/papers/paper215.pdf>
+        """
+        return [ self.f // (self.k + 1) * i for i in range ( self.k + 1 ) ]
+
+    def get_keys(self , simhash) :
+        for i , offset in enumerate ( self.offsets ) :
+            if i == (len ( self.offsets ) - 1) :
+                m = 2 ** (self.f - offset) - 1
+            else :
+                m = 2 ** (self.offsets[ i + 1 ] - offset) - 1
+            c = simhash.value >> offset & m
+            yield '%x:%x' % (c , i)
+
+
+
+    def get_near_dups(self , simhash,redisClient) :
+        """
+        `simhash` is an instance of Simhash
+        return a list of obj_id, which is in type of str
+        """
+        assert simhash.f == self.f
+        for key in self.get_keys ( simhash ) :
+            if redisClient.exists(key):
+                dups = redisClient.get ( key )
+                self.log.debug ( 'key:%s' , key )
+                if len ( dups ) > 200 :
+                    self.log.warning ( 'Big bucket found. key:%s, len:%s' , key , len ( dups ) )
+                for dup in dups :
+                    sim2 , obj_id = dup.split ( ',' , 1 )
+                    sim2 = Simhash (long ( sim2 , 16 ) , self.f )
+                    d = simhash.distance ( sim2 )
+                    if d <= self.k :
+                        return False
+        v = '%x,%s' % (simhash.value , obj_id)
+        redisClient.lpush ( key , v )
+        return True
+
+
+    def process_record(self , record,redisClient) :
         if not self._ignoreWARCRecord ( record ) :
             html = record.raw_stream.read ( )
             if html :
                 plainText = self._removeBoilerplate ( html )
-                url = record.rec_headers.get_header ( 'WARC-Target-URI' )
-                if plainText and self._isDesiredLanguage ( plainText ) and url :
-                    doc = json.dumps ( {'doc' : plainText , 'url' : url} )
-                    yield ('key' , doc)
+                recordurl = record.rec_headers.get_header ( 'WARC-Target-URI' )
+                if plainText and self._isDesiredLanguage ( plainText ) and recordurl.startswith('http') :
+                    recordHash = Simhash ( plainText )
+                    if not self.get_near_dups(recordHash):
+                            doc = json.dumps ( {'doc' : plainText , 'url' : recordurl} )
+                            yield ('key' , doc)
+
+
 
 
 
