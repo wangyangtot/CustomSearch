@@ -1,3 +1,4 @@
+from __future__ import division, unicode_literals
 import argparse
 import logging
 import os
@@ -13,9 +14,8 @@ from pyspark import SparkContext , SparkConf
 from elasticsearch import Elasticsearch , helpers
 from langdetect import detect
 import justext
-from simhash import Simhash,SimhashIndex
+from simhash import Simhash
 import redis
-from __future__ import division, unicode_literals
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
@@ -48,7 +48,7 @@ class CCSparkJob ( object ) :
     ES_INDEX = 'commoncrawl'
     ES_TYPE = 'plainDoc'
     k=3
-
+    f=64
     def parse_arguments(self) :
         """ Returns the parsed arguments from the command line """
 
@@ -160,14 +160,14 @@ class CCSparkJob ( object ) :
             response = es.indices.create ( index = self.ES_INDEX ,
                                            body = {'settings' : es_settings , 'mappings' : es_mapping} )
 
-        redis_host = '10.0.0.7'
+        redis_host = 'ec2-34-220-60-167.us-west-2.compute.amazonaws.com'
         redis_port = 6379
-        redis_password = 'AhrIykRVjO9GHA52kmYou7iUrsDbzJL+/7vjeTYhsLmpskyAY8tnucf4QJ7FpvVzFNNKuIZVVkh1LRxF'
+        redis_password = 'redispass'
         redisClient = redis.Redis ( host = redis_host , port = redis_port , password = redis_password )
 
         self.init_accumulators ( sc )
 
-        self.run_job ( sc ,es,redisClient)
+        self.run_job ( sc ,es)
 
         sc.stop ( )
 
@@ -188,13 +188,8 @@ class CCSparkJob ( object ) :
 
 
 
-    @staticmethod
-    def reduce_by_key_func(a , b) :
-        return a + b
 
-
-
-    def run_job(self , sc,es,redisClient) :
+    def run_job(self , sc,es) :
         input_data = sc.textFile ( self.args.input ,
                                    minPartitions = self.args.num_input_partitions )
         ES_RESOURCE = '/'.join ( [ self.ES_INDEX , self.ES_TYPE ] )
@@ -214,9 +209,13 @@ class CCSparkJob ( object ) :
 
 
 
-    def process_warcs(self ,redisClient, id_ , iterator) :
+    def process_warcs(self, id_ , iterator) :
         s3pattern = re.compile ( '^s3://([^/]+)/(.+)' )
         base_dir = os.path.abspath ( os.path.dirname ( __file__ ) )
+        redis_host = 'ec2-34-220-60-167.us-west-2.compute.amazonaws.com'
+        redis_port = 6379
+        redis_password = 'redispass'
+        redisClient = redis.Redis ( host = redis_host , port = redis_port , password = redis_password )
 
         # S3 client (not thread-safe, initialize outside parallelized loop)
         no_sign_request = botocore.client.Config (
@@ -316,7 +315,7 @@ class CCSparkJob ( object ) :
         return pre_language == self.DESIRED_LANGUAGE
 
 
-
+    @property
     def offsets(self) :
         """
         You may optimize this method according to <http://www.wwwconference.org/www2007/papers/paper215.pdf>
@@ -334,7 +333,7 @@ class CCSparkJob ( object ) :
 
 
 
-    def get_near_dups(self , simhash,redisClient) :
+    def check_near_dups(self , simhash,redisClient) :
         """
         `simhash` is an instance of Simhash
         return a list of obj_id, which is in type of str
@@ -342,18 +341,16 @@ class CCSparkJob ( object ) :
         assert simhash.f == self.f
         for key in self.get_keys ( simhash ) :
             if redisClient.exists(key):
-                dups = redisClient.get ( key )
-                self.log.debug ( 'key:%s' , key )
+                dups = redisClient.lrange ( key,0,-1 )
+                #self.log.debug ( 'key:%s' , key )
                 if len ( dups ) > 200 :
                     self.log.warning ( 'Big bucket found. key:%s, len:%s' , key , len ( dups ) )
                 for dup in dups :
-                    sim2 , obj_id = dup.split ( ',' , 1 )
-                    sim2 = Simhash (long ( sim2 , 16 ) , self.f )
+                    sim2 = Simhash ( long ( dup , 16 ) , self.f )
                     d = simhash.distance ( sim2 )
                     if d <= self.k :
                         return False
-        v = '%x,%s' % (simhash.value , obj_id)
-        redisClient.lpush ( key , v )
+        redisClient.lpush ( key , simhash.value  )
         return True
 
 
@@ -365,12 +362,10 @@ class CCSparkJob ( object ) :
                 recordurl = record.rec_headers.get_header ( 'WARC-Target-URI' )
                 if plainText and self._isDesiredLanguage ( plainText ) and recordurl.startswith('http') :
                     recordHash = Simhash ( plainText )
-                    if not self.get_near_dups(recordHash):
+                    print(recordHash)
+                    if self.check_near_dups(recordHash,redisClient):
                             doc = json.dumps ( {'doc' : plainText , 'url' : recordurl} )
                             yield ('key' , doc)
-
-
-
 
 
 if __name__ == "__main__" :
