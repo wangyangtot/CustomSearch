@@ -45,8 +45,8 @@ class CCSparkJob ( object ) :
     num_output_partitions = 10
     ALLOWED_CONTENT_TYPES = {"application/http; msgtype=response" , "message/http"}
     DESIRED_LANGUAGE = 'en'
-    ES_INDEX = 'commoncrawl'
-    ES_TYPE = 'plainDoc'
+    ES_INDEX = 'commoncrawls'
+    ES_TYPE = 'plainDocs'
     k=3
     f=64
     def parse_arguments(self) :
@@ -149,14 +149,39 @@ class CCSparkJob ( object ) :
         es = Elasticsearch ( host = ES_hosts , http_auth = (ES_user , ES_password) ,
                              verify_certs = False )
         if not es.indices.exists ( self.ES_INDEX ) :
+            analyszer_setting = {
+                "filter" : {
+                    "custom_shingle_filter" : {
+                        "type" : "shingle" ,
+                        "min_shingle_size" : 2 ,
+                        "max_shingle_size" : 2 ,
+                        "output_unigrams" : "true"
+                    } ,
+                    "CustomStop" : {
+                        "type" : "stop" ,
+                        "enable_position_increments" : "false"
+                    }
+                } ,
+
+                "analyzer" : {
+                    "shingle_analyzer" : {
+                        "tokenizer" : "standard" ,
+                        "filter" : [
+                            "lowercase" ,
+                            "CustomStop"
+                            "custom_shingle_filter"
+                        ]
+                    }
+                }
+            }
             es_mapping = {self.ES_TYPE : {"properties" :
                                               {"doc" : {"type" : "text" , "similarity" : "BM25" ,
-                                                        "analyzer" : "english"} ,
-                                               "url" : {"type" : "text" , "index" : "not_analyzed"}}
+                                                        "analyzer" : "shingle_analyzer"} ,
+                                               "url" : {"type" : "text" , "index" : False}}
                                           }
                           }
-            es_settings = {'number_of_shards' : 4 , 'number_of_replicas' : 0 , 'refresh_interval' : '1s' ,
-                           'index.translog.flush_threshold_size' : '1gb'}
+            es_settings = {'number_of_shards' : 3 , 'number_of_replicas' : 0 , 'refresh_interval' : '1s' ,
+                           'index.translog.flush_threshold_size' : '2gb',"analysis":analyszer_setting}
             response = es.indices.create ( index = self.ES_INDEX ,
                                            body = {'settings' : es_settings , 'mappings' : es_mapping} )
 
