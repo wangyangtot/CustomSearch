@@ -12,7 +12,7 @@ from keras import backend as K
 from keras.engine.topology import Layer
 from keras import initializers, regularizers, constraints, optimizers, layers
 import gc
-
+import re
 modelPath='webui/py_model.h5'
 nltk.download ( 'punkt' )
 
@@ -80,10 +80,7 @@ class Attention ( Layer ) :
         print ( sentence_shape )
         print ( 'topic_input_shape' )
         print ( topic_input_shape )
-        # self.kernel = self.add_weight(name='kernel',
-        #                             shape=(sentence_shape[1], self.output_dim),
-        #                            initializer='uniform',
-        #                           trainable=True)
+
         self.W = self.add_weight ( (sentence_shape[ -1 ] , topic_input_shape[ -1 ]) ,
                                    initializer = self.init ,
                                    name = '{}_W'.format ( self.name ) ) ,
@@ -92,7 +89,6 @@ class Attention ( Layer ) :
         self.features_dim = sentence_shape[ -1 ]
 
         super ( Attention , self ).build ( input_shape )
-        # self.built = True
 
 
 
@@ -105,17 +101,11 @@ class Attention ( Layer ) :
         features_dim = self.features_dim
         step_dim = self.step_dim
         x , topic_x = arg
-        # eij = K.reshape(K.dot(),
-        # K.reshape(self.W, (features_dim, 1))), (-1, step_dim))
-        # topic_x 1*220*300 x:?220*300
-        # print(self.W)
-        # print('self.W')
-        # print(K.reshape(self.W, (features_dim, features_dim)))
+
         t = K.dot ( topic_x , K.reshape ( self.W , (features_dim , features_dim) ) )
-        # print(t)
+
         e = K.batch_dot ( t , K.permute_dimensions ( x , (0 , 2 , 1) ) )
-        print ( 'e' )
-        print ( e )
+
         weighted_input = K.sum ( e , axis = 1 )
         weighted_input = K.sigmoid ( weighted_input )
 
@@ -123,28 +113,9 @@ class Attention ( Layer ) :
         # 1*220*300*300*300*300*
         # print(tem)
         # re=K.dot(tem,K.reshape(self.W, (features_dim, features_dim)))
-        # print('re')
-        # print(re)
-        # eij=K.reshape(K.dot(re,K.reshape(x,(features_dim,-1))),(-1, step_dim,step_dim))
-        # print('eij.shape')
-        # print(eij.shape)
-        # if self.bias:
-        #   eij += self.b
-
-        # eij = K.tanh(eij)
-
-        # a = K.exp(eij)
-
-       # if mask is not None :
-        #    a *= K.cast ( mask , K.floatx ( ) )
-
-        # a /= K.cast(K.sum(a, axis=1, keepdims=True) + K.epsilon(), K.floatx())
 
         weighted_input = K.expand_dims ( weighted_input )
         weighted_input = x * weighted_input
-
-        print ( 'weighted_input' )
-        print ( weighted_input )
         return weighted_input
 
 
@@ -159,7 +130,6 @@ class Attention ( Layer ) :
             'W_regularizer' : self.W_regularizer ,
             'W_constraint' : self.W_constraint ,
             'step_dim' : self.step_dim ,
-            # 'features_dim': 0
         }
         base_config = super ( Attention , self ).get_config ( )
         return dict ( list ( base_config.items ( ) ) + list ( config.items ( ) ) )
@@ -197,6 +167,14 @@ def compare(no_Argument , Argument_for , Argument_against) :
         return 'Argument_for'
     return 'Argument_against'
 
+
+def truncted_float(f) :
+    pattern = re.compile ( '[\d]+[.][\d]{2,3}' )
+    find = pattern.match ( str ( f ) )
+    if find is None :
+                return 0.5
+    else :
+            return find.group ( 0 )
 
 
 
@@ -238,47 +216,52 @@ def index( ) :
                 tok_sentence_lenght = len ( tok_sentence )
                 urllist += tok_sentence_lenght * [url]
 
-    max_features = 100000
-    maxlen = 150
-    embed_size = 300
-    tok = text.Tokenizer ( num_words = max_features , lower = True )
-    total_sentence = len ( jsonresponse )
-    tok.fit_on_texts ( jsonresponse + [ search_text ] * total_sentence )
-    word_index = tok.word_index
-    X_test = tok.texts_to_sequences ( jsonresponse )
-    topic_test = tok.texts_to_sequences ( [ search_text ] * total_sentence )
-    X_test = sequence.pad_sequences ( X_test , maxlen = maxlen )
-    topic_test = sequence.pad_sequences ( topic_test , maxlen = maxlen )
-    del tok
-    gc.collect ( )
-    embedding_matrix = build_matrix ( word_index , embeddings_index )
-    y_pred = model.predict ( [ X_test , topic_test ] , verbose = 1 , batch_size = 512 )
-    K.clear_session ( )
-    index = np.arange ( len ( y_pred ) )
-    y_pred = np.c_[ index , y_pred ]
-    ratings = pd.DataFrame (
-        {'index' : y_pred[ : , 0 ] , 'no_Argument' : y_pred[ : , 1 ] , 'Argument_for' : y_pred[ : , 2 ] ,
-         'Argument_against' : y_pred[ : , 3 ]} )
+            max_features = 100000
+            maxlen = 150
+            embed_size = 300
+            tok = text.Tokenizer ( num_words = max_features , lower = True )
+            total_sentence = len ( jsonresponse )
+            tok.fit_on_texts ( jsonresponse + [ search_text ] * total_sentence )
+            word_index = tok.word_index
+            X_test = tok.texts_to_sequences ( jsonresponse )
+            topic_test = tok.texts_to_sequences ( [ search_text ] * total_sentence )
+            X_test = sequence.pad_sequences ( X_test , maxlen = maxlen )
+            topic_test = sequence.pad_sequences ( topic_test , maxlen = maxlen )
+            del tok
+            gc.collect ( )
+            embedding_matrix = build_matrix ( word_index , embeddings_index )
+            y_pred = model.predict ( [ X_test , topic_test ] , verbose = 1 , batch_size = 512 )
+            K.clear_session ( )
+            index = np.arange ( len ( y_pred ) )
+            y_pred = np.c_[ index , y_pred ]
+            ratings = pd.DataFrame (
+                {'index' : y_pred[ : , 0 ] , 'no_Argument' : y_pred[ : , 1 ] , 'Argument_for' : y_pred[ : , 2 ] ,
+                 'Argument_against' : y_pred[ : , 3 ]} )
 
 
-    ratings[ 'res' ] = ratings.apply (
-        lambda x : compare ( x[ 'no_Argument' ] , x[ 'Argument_for' ] , x[ 'Argument_against' ] ) , axis = 1 )
+            ratings[ 'res' ] = ratings.apply (
+                lambda x : compare ( x[ 'no_Argument' ] , x[ 'Argument_for' ] , x[ 'Argument_against' ] ) , axis = 1 )
 
+            sortedforratings = ratings[ ratings[ 'res' ] == 'Argument_for' ].sort_values ( by = 'Argument_for' ,
+                                                                                           ascending = False )
+            sortedforratings[ 'text' ] = sortedforratings.apply ( lambda x : jsonresponse[ int ( x[ 'id' ] ) ] ,
+                                                                  axis = 1 )
+            sortedforratings[ 'link' ] = sortedforratings.apply ( lambda x : urllist[ int ( x[ 'id' ] ) ] , axis = 1 )
+            sortedforratings[ 'Argument_for' ] = sortedforratings[ 'Argument_for' ].apply (
+                lambda x : truncted_float ( x ) )
 
+            sortedAgainstRatings = ratings[ ratings[ 'res' ] == 'Argument_against' ].sort_values (
+                by = 'Argument_against' , ascending = False )
+            sortedAgainstRatings[ 'Argument_against' ] = sortedAgainstRatings[ 'Argument_against' ].apply (
+                lambda x : truncted_float ( x ) )
 
-    sortedforratings = ratings[ ratings[ 'res' ] == 'Argument_for' ].sort_values ( by = 'Argument_for' ,
-                                                                                   ascending = False )
-    sortedAgainstRatings = ratings[ ratings[ 'res' ] == 'Argument_against' ].sort_values ( by = 'Argument_against' ,
-                                                                                       ascending = False )
-    all_sentence=[]
-    print(sortedforratings)
-    for_dict_all={}
-    agaist_dict_all={}
-    for index, row in sortedAgainstRatings.iterrows():
-        agaist_dict_all[urllist[(int ( row[ 'index' ] ))]]={'res':row['res'],'score':row['Argument_for'],'text':jsonresponse[ (int ( row[ 'index' ] )) ]}
-    for index, row in sortedforratings.iterrows():
-        for_dict_all[urllist[(int ( row[ 'index' ] ))]]={'res':row['res'],'score':row['Argument_against'],'text':jsonresponse[ (int ( row[ 'index' ] )) ]}
-    return render_template ( "result.html" , for_output = for_dict_all,against_outout=agaist_dict_all)
+            sortedAgainstRatings[ 'text' ] = sortedAgainstRatings.apply ( lambda x : jsonresponse[ int ( x[ 'id' ] ) ] ,
+                                                                          axis = 1 )
+            sortedAgainstRatings[ 'link' ] = sortedAgainstRatings.apply ( lambda x : urllist[ int ( x[ 'id' ] ) ] ,
+                                                                          axis = 1 )
+            return render_template ( "result.html" , for_output = sortedforratings ,
+                                     against_outout = sortedAgainstRatings )
+
 
 
 
