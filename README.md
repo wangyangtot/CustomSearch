@@ -4,10 +4,10 @@
 Argument Spider is a web search engine to retrieve individual argumentative sentences from web data for 
 controversial topics.
 
-[Argument Spider is running here](http://ec2-52-13-61-56.us-west-2.compute.amazonaws.com:5000/)  
-video  
-detailed blogs  
-[Google Slides for introduction of Argument Spider](https://docs.google.com/presentation/d/165WDYcDfVdoiy8gR36nTCXvPcLT7KKlicLLaZxge7R0/edit#slide=id.g566ab6e222_0_81)
+>[Argument Spider is running here](http://ec2-52-13-61-56.us-west-2.compute.amazonaws.com:5000/)  
+>video  
+>detailed blogs  
+>[Google Slides for introduction of Argument Spider](https://docs.google.com/presentation/d/165WDYcDfVdoiy8gR36nTCXvPcLT7KKlicLLaZxge7R0/edit#slide=id.g566ab6e222_0_81)
 
 
 ## Table of Contents
@@ -70,6 +70,7 @@ could be found here. It contains raw web html page data , extracted metadata and
  Common crawl is the largest multilingual web crawl available to date so that the raw data 
  have more than 
  40 languages.To deal with it,The process of language identification can be represented as below:
+ 
  <img src="pig/languageDetection.png" width="200" height="300">
  The first stage generates the language models whose features could be represented as specific characteristics of language. 
  These features are words or N-grams with their occurrences in the training set. 
@@ -128,6 +129,7 @@ An inverted index consists of a list of all the unique words that appear in any 
 To create an inverted index, content field of each document split into separate words 
 (which  called terms, or tokens), create a sorted list of all the unique terms, and then list in which document each term appears. 
 The result looks something like this:
+
 <img src="pig/inverted%20index.png" width="200" height="300">
 
 Now, if we want to search for quick brown,the documents in which each term appears come out.But within those documents,some are better match —more relevant to our query—than 
@@ -148,6 +150,7 @@ the later coming words in RNN.
 Different from typical attention based RNN models in which attention 
 information is added after RNN computation, The inner-attention modal add the attention before computing 
 the sentence representation. The words representation are weights according to question attention as follows:
+
   ![](pig/inner_words.png)  
   where Mqi is an attention matrix to transform a question representaion into the word embedding space.
   Then the dot value used to determine the question attention strength, which is a sigmoid function to normalize 
@@ -171,7 +174,7 @@ providing a direct mapping to the crawl process that Not only does the format st
 from the websites it contacts (WARC-Type: response), it also stores information about how that
  information was requested (WARC-Type: request) and metadata on the crawl process itself (WARC-Type: metadata).
 Typical warc Format file looks like:
-![](pig/warcFormat.png)
+
 <img src="pig/warcFormat.png" width="300" height="300">
 
 This project utilized a small portion of the data from [2018 March](http://commoncrawl.org/2018/03/march-2018-crawl-archive-now-available/)  which approximates 20T.
