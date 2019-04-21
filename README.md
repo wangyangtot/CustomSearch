@@ -71,6 +71,7 @@ could be found here. It contains raw web html page data , extracted metadata and
  Common crawl is the largest multilingual web crawl available to date so that the raw data 
  have more than 
  40 languages.To deal with it,The process of language identification can be represented as below:![](pig/languageDetection.png)
+ <img src="pig/languageDetection.png" width="150" height="300">
  The first stage generates the language models whose features could be represented as specific characteristics of language. 
  These features are words or N-grams with their occurrences in the training set. 
  Then when a new document come up,a document model creates by the similar way and go though the classification stage
