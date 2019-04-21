@@ -55,7 +55,6 @@ could be found here. It contains raw web html page data , extracted metadata and
   , TABLE, TD, TEXTAREA, TH, THEAD, TR, UL. homogeneousness in most blocks enable  classify the textual blocks in a 
   given HTML page in one of the four classes:
   
-   >
    >  * bad, which considers boilerplate blocks
    >  * good, which is the main content blocks
    >  * short, which is a too short content block, thus a reliable decision cannot be made  
@@ -70,8 +69,8 @@ could be found here. It contains raw web html page data , extracted metadata and
  * ##### 1.2 language identification
  Common crawl is the largest multilingual web crawl available to date so that the raw data 
  have more than 
- 40 languages.To deal with it,The process of language identification can be represented as below:![](pig/languageDetection.png)
- <img src="pig/languageDetection.png" width="150" height="300">
+ 40 languages.To deal with it,The process of language identification can be represented as below:
+ <img src="pig/languageDetection.png" width="200" height="300">
  The first stage generates the language models whose features could be represented as specific characteristics of language. 
  These features are words or N-grams with their occurrences in the training set. 
  Then when a new document come up,a document model creates by the similar way and go though the classification stage
@@ -97,15 +96,17 @@ be removed and keep the unique one.Google Came up an algorithm [Detecting Near-D
  set of words grouped in n and n, also called n-gram grouping.  
  
  But how to make use of vector comparison function? When a new document come up, 
- .is it necessary to compare it with all the documents which has been checked? if we have 2^34 pages,then compare with every one will be
-  92 Billion times.
+ .is it necessary to compare it with all the documents which has been checked? if we have 2^34 pages,then the time to compare with every one will be
+  ```
+  2^34=92 Billion
+  ```
   Practically, When the documents hashed to 24-fingerprint,
- the hamming distance of near-duplicates usually less than 4. By virtue of this property, if two documents are near-duplicates,when 
+ the hamming distance of near-duplicates usually less than 4. By virtue of Pigeonhole principle, if two documents are near-duplicates,when 
  24-bit fingerprints split into four blocks,
- one of blocks must be identical.Put it another way, If none of four blocks of a  document is identical with  each of four blocks 
+ at least one of blocks must be identical.Put it another way, If none of four blocks of a  document is identical with  each of four blocks 
  of  another document,we are sure those two documents could't be near-duplicates. Thus,cutting off the 64-bit fingerprint into four blocks, 
- which means every block is 16-bit,and putting every block into a hashmap as the key,the 64-bit fingerprint as the value.When  a new 
-  document come up, rather than compare  all documents, it firstly maps the values from hashmap by the keys which is every block of 
+ -every block is 16-bit,and putting every block into a hashmap as the key,the 64-bit fingerprint as the value.When  a new 
+  document come up, rather than compare  all documents, it firstly maps the values from hashmap by the keys which are four blocks of 
   64-bit fingerprint,then our comparison range narrows down to the mapped documents.The comparison number would be:
   
   ```
@@ -113,11 +114,10 @@ be removed and keep the unique one.Google Came up an algorithm [Detecting Near-D
    One million
   ```          
     
- 
 
 
 #### 2.  Inverted indexed the documents 
-when raw web pages cleaned up to plain-text, next step is index them to the Elasticsearch. Elasticsearch uses a structure called an 
+when raw web pages be cleaned up to plain-text, next step is to index them to Elasticsearch. Elasticsearch uses a structure called an 
 inverted index, which is designed to allow very fast full-text searches. 
 An inverted index consists of a list of all the unique words that appear in any document, and for each word,it has a hash relationship to 
  a list of the documents in which it appears.For example, let’s say we have two documents, each with a content field containing the following:
@@ -128,16 +128,39 @@ An inverted index consists of a list of all the unique words that appear in any 
 To create an inverted index, content field of each document split into separate words 
 (which  called terms, or tokens), create a sorted list of all the unique terms, and then list in which document each term appears. 
 The result looks something like this:
-![](pig/inverted%20index.png)
+<img src="pig/inverted%20index.png" width="200" height="300">
 
-Now, if we want to search for quick brown,the documents in which each term appears come up.But within those documents,some are better match— more relevant to our query—than 
-the others.Usually, to rank the relavence of those documents, [TF-IDF(term frequency–inverse document frequency)](http://www.tfidf.com/) 
-Algorithm is default ranking function in Elasticsearch.
- The importance increases proportionally to the number of times a word appears in the document but is offset by the frequency of the word
+Now, if we want to search for quick brown,the documents in which each term appears come out.But within those documents,some are better match —more relevant to our query—than 
+the others.Usually,to rank the relevance of those documents, [TF-IDF(term frequency–inverse document frequency)](http://www.tfidf.com/) 
+Algorithm is default ranking function in that the importance increases proportionally to the number of times a word appears in the document but is offset by the frequency of the word
   in the corpus.
 #### 3.  Trained models
+Recent years, attention-based models have shown great success 
+in many NLP tasks such as machine translation, question answering,and recognizing textual entailments.
+Based on recurrent neural networks (RNN), 
+external attention information was added to hidden representations to get an attentive sentence representation.  
+However, in the RNN architecture, a word is added at each time step and the hidden 
+state is updated recurrently, causing hidden states near the end of the sentence are expected to 
+capture more information, near the end of the sentence be more attended due to their 
+comparatively abundant semantic accumulation and finally  biased attentive weight towards 
+the later coming words in RNN.
 
+Different from typical attention based RNN models in which attention 
+information is added after RNN computation, The inner-attention modal add the attention before computing 
+the sentence representation. The words representation are weights according to question attention as follows:
+  ![](pig/inner_words.png)  
+  where Mqi is an attention matrix to transform a question representaion into the word embedding space.
+  Then the dot value used to determine the question attention strength, which is a sigmoid function to normalize 
+  the weight t between 0 and 1.The above attention process could be thought as sentence 
+  distillation where the input words are distilled (or filtered) by question attention.
+   Finally,the whole sentence based on this distilled input can be presented using traditional RNN model Like LSTM,
+   biLSTM and GRU.
+  
+  
+  The model is show below:
+ 
 ![](pig/inner-att-biLSTM.png)
+
 
 ## Data source 
 
@@ -149,6 +172,7 @@ from the websites it contacts (WARC-Type: response), it also stores information 
  information was requested (WARC-Type: request) and metadata on the crawl process itself (WARC-Type: metadata).
 Typical warc Format file looks like:
 ![](pig/warcFormat.png)
+<img src="pig/warcFormat.png" width="300" height="300">
 
 This project utilized a small portion of the data from [2018 March](http://commoncrawl.org/2018/03/march-2018-crawl-archive-now-available/)  which approximates 20T.
 
