@@ -76,6 +76,7 @@ could be found here. It contains raw web html page data , extracted metadata and
  These features are words or N-grams with their occurrences in the training set. 
  Then when a new document come up,a document model creates by the similar way and go though the classification stage
  to determine the language.
+ 
  * ##### 1.3 near-duplicate content removal
 Near-duplicates is a technical jargon which means several documents are almost, but not quite identical. For Example,
 When you searching for the words “bus plunges”,you find 437 articles published with one day.To guarantee the quality of searching,the near-duplicates should 
@@ -118,7 +119,7 @@ be removed and keep the unique one.Google Came up an algorithm [Detecting Near-D
 
 
 #### 2.  Inverted indexed the documents 
-when raw web pages be cleaned up to plain-text, next step is to index them to Elasticsearch. Elasticsearch uses a structure called an 
+When raw web pages be cleaned up to plain-text, next step is to index them to Elasticsearch. Elasticsearch uses a structure called an 
 inverted index, which is designed to allow very fast full-text searches. 
 An inverted index consists of a list of all the unique words that appear in any document, and for each word,it has a hash relationship to 
  a list of the documents in which it appears.For example, let’s say we have two documents, each with a content field containing the following:
@@ -132,10 +133,13 @@ The result looks something like this:
 
 <img src="pig/inverted%20index.png" width="200" height="300">
 
-Now, if we want to search for quick brown,the documents in which each term appears come out.But within those documents,some are better match —more relevant to our query—than 
+When we search for "quick brown",the documents in which each term appears come out.But within those documents,some are better match —more relevant to our query—than 
 the others.Usually,to rank the relevance of those documents, [TF-IDF(term frequency–inverse document frequency)](http://www.tfidf.com/) 
-Algorithm is default ranking function in that the importance increases proportionally to the number of times a word appears in the document but is offset by the frequency of the word
+Algorithm is default ranking function in which the importance increases proportionally to the number of times a word appears in the document but is offset by the frequency of the word
   in the corpus.
+  
+   But in language statistics, estimating probabilities using 
+   frequency can be inaccurate. Hence, smoothing is typically used.In this project, BM25 used to smooth the analyzer of elasticserch. 
 #### 3.  Trained models
 Recent years, attention-based models have shown great success 
 in many NLP tasks such as machine translation, question answering,and recognizing textual entailments.
@@ -174,8 +178,6 @@ providing a direct mapping to the crawl process that Not only does the format st
 from the websites it contacts (WARC-Type: response), it also stores information about how that
  information was requested (WARC-Type: request) and metadata on the crawl process itself (WARC-Type: metadata).
 Typical warc Format file looks like:
-
-<img src="pig/warcFormat.png" width="300" height="300">
 
 This project utilized a small portion of the data from [2018 March](http://commoncrawl.org/2018/03/march-2018-crawl-archive-now-available/)  which approximates 20T.
 
