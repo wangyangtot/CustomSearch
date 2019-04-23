@@ -13,7 +13,7 @@ The results of searching "self driving" are below:
 
 The resluts could be divided into two parts: left part is the list of pro arguments and right is the 
 con arguments which are all extracted from the web page.besides, every argument comes with a URL to the original web page.
-more details could be found in the [Video](https://www.youtube.com/watch?v=wzz3-XftccY&feature=youtu.be)
+More details could be found in the [Video](https://www.youtube.com/watch?v=wzz3-XftccY&feature=youtu.be)
 ## Table of Contents
 
 ## Introduction
