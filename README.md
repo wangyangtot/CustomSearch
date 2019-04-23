@@ -5,11 +5,15 @@ Argument Spider is a web search engine to retrieve individual argumentative sent
 controversial topics.
 
 >[Argument Spider is running here](http://ec2-52-13-61-56.us-west-2.compute.amazonaws.com:5000/)  
->video  
->detailed blogs  
+>[Video for searching "self driving"](https://www.youtube.com/watch?v=wzz3-XftccY&feature=youtu.be)  
 >[Google Slides for introduction of Argument Spider](https://docs.google.com/presentation/d/165WDYcDfVdoiy8gR36nTCXvPcLT7KKlicLLaZxge7R0/edit#slide=id.g566ab6e222_0_81)
+## Screenshoot
+The results of searching "self driving" are below:
+![](pig/self_driving_results.png)
 
-
+The resluts could be divided into two parts: left part is the list of pro arguments and right is the 
+con arguments which are all extracted from the web page.besides, every argument comes with a URL to the original web page.
+more details could be found in the [Video](https://www.youtube.com/watch?v=wzz3-XftccY&feature=youtu.be)
 ## Table of Contents
 
 ## Introduction
@@ -80,7 +84,7 @@ could be found here. It contains raw web html page data , extracted metadata and
  * ##### 1.3 near-duplicate content removal
 Near-duplicates is a technical jargon which means several documents are almost, but not quite identical. For Example,
 When you searching for the words “bus plunges”,you find 437 articles published with one day.To guarantee the quality of searching,the near-duplicates should 
-be removed and keep the unique one.Google Came up an algorithm [Detecting Near-Duplicates for Web Crawling](http://www.wwwconference.org/www2007/papers/paper215.pdf)
+be removed and keep the unique one.Google Came up with an algorithm [Detecting Near-Duplicates for Web Crawling](http://www.wwwconference.org/www2007/papers/paper215.pdf)
  in 2007 to tackle this problem for web pages incredibly fast.
  
  First,[Charikar's fingerprinting technique, ](https://www.cs.princeton.edu/courses/archive/spr04/cos598B/bib/CharikarEstim.pdf) 
