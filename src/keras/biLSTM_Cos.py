@@ -24,13 +24,8 @@ class RocAucEvaluation(Callback):
             y_pred = self.model.predict(self.X_val, verbose=0)
             print (y_pred)
             roc_auc = roc_auc_score(self.y_val, y_pred)
-            #precision=precision_score(self.y_val, y_pred)
-            #f1=f1_score(self.y_val, y_pred)
-            #recall=recall_score(self.y_val, y_pred)
             print("\n ROC-AUC - epoch: {:d} - score: {:.6f}".format(epoch+1, roc_auc))
-            #print ( "\n Precision - epoch: {:d} - score: {:.6f}".format ( epoch + 1 , precision ) )
-            #print ( "\n F1 - epoch: {:d} - score: {:.6f}".format ( epoch + 1 , f1 ) )
-            #print ( "\n recall - epoch: {:d} - score: {:.6f}".format ( epoch + 1 , recall ) )
+
 
 
 
@@ -79,19 +74,14 @@ def build_model(sentenceLength , word_index ,):
                                     )
     x = embedding_layer ( sequence_input )
     topic_x = topic_embedding_layer ( topic_sequence_input )
-    print ( 'topic_x.shape' )
-    print ( topic_x.shape )
+
     topic_mean_x=Lambda (topic_mean,output_shape = topic_mean_output_shape)(topic_x)
-    print ( 'topic_mean_x.shape' )
-    print(topic_mean_x.shape)
+
 
     distance = Lambda ( cosine_distance , output_shape = cos_dist_output_shape ) ( [ x , topic_mean_x ])
-    print ( "distance.shape" )
 
-    print ( distance.shape )
     x = concatenate ( [ x , distance ] )
-    print("concatenate")
-    print(x.shape)
+
 
     #dropout = 0.15 , recurrent_dropout = 0.15 )
     x = Bidirectional ( L.CuDNNLSTM  ( 96 , return_sequences = True )  ) ( x )

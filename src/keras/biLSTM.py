@@ -35,13 +35,8 @@ def build_model():
     x = Conv1D ( 64 , kernel_size = 3 , padding = "valid" , kernel_initializer = "glorot_uniform" ) ( x )
     avg_pool = GlobalAveragePooling1D ( ) ( x )
     max_pool = GlobalMaxPooling1D ( ) ( x )
-    print("before")
-    print(max_pool.shape)
     x = concatenate ( [ avg_pool , max_pool ] )
-    print ( "after" )
-    print ( x.shape )
     preds = Dense ( 3 , activation = "sigmoid" ) ( x )
-    print ( preds.shape )
     model = Model ( inp , preds )
     model.compile ( loss = 'binary_crossentropy' , optimizer = Adam ( lr = 1e-3 ) , metrics = [ 'accuracy' ] )
     return model
