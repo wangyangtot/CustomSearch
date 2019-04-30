@@ -7,6 +7,7 @@ from keras.models import Model
 from keras.optimizers import Adam
 from keras import backend as K
 from keras.engine.topology import Layer
+from keras.layers import Dense,Input,LSTM,Bidirectional,Activation,Conv1D,GRU,Lambda,concatenate
 from keras import initializers , regularizers , constraints , optimizers , layers
 from keras.callbacks import EarlyStopping,ModelCheckpoint
 from keras.callbacks import Callback
@@ -25,6 +26,8 @@ class RocAucEvaluation(Callback):
             y_pred = self.model.predict(self.X_val, verbose=0)
             score = roc_auc_score(self.y_val, y_pred)
             print("\n ROC-AUC - epoch: {:d} - score: {:.6f}".format(epoch+1, score))
+
+
 
 
 class Attention ( Layer ) :
@@ -50,14 +53,18 @@ class Attention ( Layer ) :
 
     def build(self , input_shape) :
         assert isinstance ( input_shape , list ) and len ( input_shape ) == 2
+        print ( input_shape )
         sentence_shape , topic_input_shape = input_shape
-
+        print ( 'sentence_shape' )
+        print ( sentence_shape )
+        print ( 'topic_input_shape' )
+        print ( topic_input_shape )
         self.W = self.add_weight ( (sentence_shape[ -1 ] , topic_input_shape[ -1 ]) ,
                                    initializer = self.init ,
                                    name = '{}_W'.format ( self.name ) ) ,
         # regularizer=self.W_regularizer,
         # constraint=self.W_constraint)
-        self.features_dim = sentence_shape[ -1 ] ##embed dim
+        self.features_dim = sentence_shape[ -1 ]
         super ( Attention , self ).build ( input_shape )
 
 
@@ -81,9 +88,9 @@ class Attention ( Layer ) :
         if mask is not None :
             weighted_input *= K.cast ( mask , K.floatx ( ) )
 
-        weighted_input = K.expand_dims ( weighted_input,-1 )
+        weighted_input = K.expand_dims ( weighted_input )
+        weighted_input=K.tf.multiply ( x , weighted_input )
 
-        weighted_input = K.tf.multiply ( x , weighted_input )
         return weighted_input
 
 
@@ -101,6 +108,35 @@ class Attention ( Layer ) :
         }
         base_config = super ( Attention , self ).get_config ( )
         return dict ( list ( base_config.items ( ) ) + list ( config.items ( ) ) )
+
+
+
+def cosine_distance(vests) :
+        x , y = vests
+        x = K.l2_normalize ( x , axis = -1 )
+        y = K.l2_normalize ( y , axis = -1 )
+        y = K.expand_dims ( y , 1 )
+        mul = K.tf.multiply ( x , y )
+        res = K.sum ( mul , axis = -1 , keepdims = True )
+        return res
+
+
+
+def cos_dist_output_shape(shapes) :
+    shape1 , shape2 = shapes
+    return (shape1[ 0 ] , shape1[ 1 ] , 1)
+
+
+
+def topic_mean(x) :
+    x = K.mean ( x , axis = 1 )
+    return x
+
+
+
+def topic_mean_output_shape(input_shape) :
+    assert len ( input_shape ) == 3  # only valid for 3D tensors
+    return (input_shape[ 0 ] , input_shape[ -1 ])
 
 
 
@@ -125,8 +161,15 @@ def build_model(sentenceLength , word_index , verbose = False , compile = True) 
     topic_x = topic_embedding_layer ( topic_sequence_input )
     att_x = Attention ( sentenceLength ) ( [ x , topic_x ] )
 
+    topic_mean_x=Lambda (topic_mean,output_shape = topic_mean_output_shape)(topic_x)
+
+    distance = Lambda ( cosine_distance , output_shape = cos_dist_output_shape ) ( [ att_x , topic_mean_x ] )
+
+    x = concatenate ( [ att_x , distance ] )
+
+
     # att=K.Dropout(0.15)(att)
-    x = L.Bidirectional ( L.CuDNNLSTM ( 128 , return_sequences = True ) ) ( att_x )
+    x = L.Bidirectional ( L.CuDNNLSTM ( 128 , return_sequences = True ) ) ( x )
     print ( x.shape )
 
     avg_pool1 = L.GlobalAveragePooling1D ( ) ( x )
@@ -148,7 +191,7 @@ def build_model(sentenceLength , word_index , verbose = False , compile = True) 
 
 
 def train_model(model , input_train , topic_train , out_train , input_val , topic_val , out_val) :
-    filepath = "inner_att-bilstm.best.hdf5"
+    filepath = "inner_att-bilstm_cos_best.hdf5"
     checkpoint = ModelCheckpoint ( filepath , monitor = 'val_acc' , verbose = 1 , save_best_only = True , mode = 'max' )
     early = EarlyStopping ( monitor = "val_acc" , mode = "max" , patience = 5 )
     ra_val = RocAucEvaluation ( validation_data = ([input_val ,topic_val ], out_val) , interval = 1 )
@@ -158,7 +201,7 @@ def train_model(model , input_train , topic_train , out_train , input_val , topi
     model.fit ( [ input_train , topic_train ] , out_train , epochs = epochs , batch_size = batch_size , verbose = 1 , \
                 validation_data = ([ input_val , topic_val ] , out_val),callbacks = callbacks_list, )
     model.summary ( )
-    #model.save ( 'inner_att-bilstm.h5' )
+    #model.save ( 'inner_att_bilstm_cos.h5' )
 
 
 
@@ -177,7 +220,7 @@ if __name__ == "__main__" :
     train_model ( model , input_train , topic_train , out_train , input_val , topic_val , out_val )
 
 ### to reuse the model
-###t_model = load_model('inner_att-bilstm.h5',custom_objects={'Attention':Attention})
+###t_model = load_model('inner_att-bilstm_cos.h5',custom_objects={'Attention':Attention})
 
 
 

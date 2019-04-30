@@ -11,8 +11,8 @@ controversial topics.
 The results of searching "self driving" are below:
 ![](pig/self_driving_results.png)
 
-The resluts could be divided into two parts: left part is the list of pro arguments and right is the 
-con arguments which are all extracted from the web page.besides, every argument comes with a URL to the original web page.
+The results could be divided into two parts: left part is the list of pro arguments and right is the 
+con arguments which are all extracted from the web pages.Besides, every argument comes with a URL to the original web page.
 More details could be found in the [Video](https://www.youtube.com/watch?v=wzz3-XftccY&feature=youtu.be)
 ## Table of Contents
 
@@ -181,7 +181,6 @@ It is archived as the Web ARChive (WARC) format which  is the raw data from the 
 providing a direct mapping to the crawl process that Not only does the format store the HTTP response 
 from the websites it contacts (WARC-Type: response), it also stores information about how that
  information was requested (WARC-Type: request) and metadata on the crawl process itself (WARC-Type: metadata).
-Typical warc Format file looks like:
 
 This project utilized a small portion of the data from [2018 March](http://commoncrawl.org/2018/03/march-2018-crawl-archive-now-available/)  which approximates 20T.
 
