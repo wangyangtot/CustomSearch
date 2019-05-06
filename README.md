@@ -179,7 +179,7 @@ The first one is the base biLSTM model without considering the topic into consid
 the Cosine Simlarities and Attention mechanisim, and the last one combine both the Cosine Simlarities and Attention mechanisim.
 
 the training results are here:
-![](pig/trainingREsults.png)
+![](pig/trainingResults.png)
 
 Two metrics ROC_AUC and validate accuracy have been used to evaluate the models. it is obvious that when we include the information of topic
 into the model, there is a huge improvement.And the last one Inner-Attention biLSTM with Topic Similarity Features 
