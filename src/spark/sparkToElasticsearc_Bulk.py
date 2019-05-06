@@ -48,7 +48,7 @@ with open ( "../../yml_folder/Redis.yaml" , 'r' ) as ES_yaml :
 class CCSparkJob ( object ) :
     """
     A  Spark job definition to ingest data from Common Crawl data,remove the boilerplate, language identification,
-    deduplication and wrote to Elasticsearch.
+    deduplication and  buck wrote to Elasticsearch.
     """
 
     ## read the setting of spark,elasticsearch and Redis
@@ -178,7 +178,7 @@ class CCSparkJob ( object ) :
         es = Elasticsearch ( host = ES_hosts , http_auth = (ES_user , ES_password) ,
                              verify_certs = False )
         if not es.indices.exists ( self.ES_INDEX ) :
-
+            ##custom analyszer for custom_shingle_filter(unigram and bigrams)
             analyszer_setting = {
                 "filter" : {
                     "custom_shingle_filter" : {
@@ -243,6 +243,15 @@ class CCSparkJob ( object ) :
 
 
 
+    def BulkES(partition) :
+        es = Elasticsearch ( ES_settings[ 'ES_nodes' ] ,
+                             http_auth = (ES_settings[ 'ES_user' ] , ES_settings[ 'ES_password' ]) ,
+                             verify_certs = False )
+        for success , info in helpers.parallel_bulk ( es , partition , thread_count = 4 , chunk_size = 100 ) :
+            if not success :
+                print('A document failed:' , info)
+
+
 
     def run_job(self , sc,es) :
         input_data = sc.textFile ( self.args.input ,
@@ -262,12 +271,7 @@ class CCSparkJob ( object ) :
                    'es.net.http.auth.pass' : ES_settings['ES_password'] ,
                    'es.nodes.wan.only' : 'true' ,
                    'es.input.json' : 'yes'}
-        input_data.mapPartitionsWithIndex (self.process_warcs ) \
-            .saveAsNewAPIHadoopFile ( path = '-' , \
-                                      outputFormatClass = 'org.elasticsearch.hadoop.mr.EsOutputFormat' , \
-                                      keyClass = 'org.apache.hadoop.io.NullWritable' , \
-                                      valueClass = 'org.elasticsearch.hadoop.mr.LinkedMapWritable' , \
-                                      conf = es_conf )
+        input_data.mapPartitionsWithIndex (self.process_warcs ).foreachPartition(self.BulkES)
         self.log_aggregators ( sc )
 
 
@@ -423,7 +427,11 @@ class CCSparkJob ( object ) :
                     print(recordHash)
                     if self.check_near_dups(recordHash,redisClient):
                             doc = json.dumps ( {'doc' : plainText , 'url' : recordurl} )
-                            yield ('key' , doc)
+                            save = {"_index" :ES_settings['ES_index'] ,
+                                    "_type" : ES_settings['ES_type'] ,
+                                    "_source" : doc
+                                    }
+                            yield doc
 
 
 if __name__ == "__main__" :
