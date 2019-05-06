@@ -30,8 +30,6 @@ class RocAucEvaluation(Callback):
 
 
 
-
-
 def cosine_distance(vests) :
         x , y = vests
         x = K.l2_normalize ( x , axis = -1 )

@@ -55,10 +55,6 @@ class Attention ( Layer ) :
         assert isinstance ( input_shape , list ) and len ( input_shape ) == 2
         print ( input_shape )
         sentence_shape , topic_input_shape = input_shape
-        print ( 'sentence_shape' )
-        print ( sentence_shape )
-        print ( 'topic_input_shape' )
-        print ( topic_input_shape )
         self.W = self.add_weight ( (sentence_shape[ -1 ] , topic_input_shape[ -1 ]) ,
                                    initializer = self.init ,
                                    name = '{}_W'.format ( self.name ) ) ,
@@ -170,17 +166,14 @@ def build_model(sentenceLength , word_index , verbose = False , compile = True) 
 
     # att=K.Dropout(0.15)(att)
     x = L.Bidirectional ( L.CuDNNLSTM ( 128 , return_sequences = True ) ) ( x )
-    print ( x.shape )
 
     avg_pool1 = L.GlobalAveragePooling1D ( ) ( x )
     max_pool1 = L.GlobalMaxPooling1D ( ) ( x )
 
     x = L.concatenate ( [ avg_pool1 , max_pool1 ] )
-    print ( x )
 
     preds = L.Dense ( 3 , activation = 'sigmoid' ) ( x )
 
-    print ( preds )
     model = Model ( inputs = [ sequence_input , topic_sequence_input ] , outputs = preds )
     if verbose :
         model.summary ( )
@@ -196,7 +189,7 @@ def train_model(model , input_train , topic_train , out_train , input_val , topi
     early = EarlyStopping ( monitor = "val_acc" , mode = "max" , patience = 5 )
     ra_val = RocAucEvaluation ( validation_data = ([input_val ,topic_val ], out_val) , interval = 1 )
     callbacks_list = [ ra_val , checkpoint , early ]
-    epochs = 7
+    epochs = 14
     batch_size = 521
     model.fit ( [ input_train , topic_train ] , out_train , epochs = epochs , batch_size = batch_size , verbose = 1 , \
                 validation_data = ([ input_val , topic_val ] , out_val),callbacks = callbacks_list, )

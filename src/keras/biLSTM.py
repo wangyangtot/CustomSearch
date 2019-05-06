@@ -24,6 +24,7 @@ class RocAucEvaluation(Callback):
             score = roc_auc_score(self.y_val, y_pred)
             print("\n ROC-AUC - epoch: {:d} - score: {:.6f}".format(epoch+1, score))
 
+
 def build_model():
     maxlen = 150
     embed_size = 300
@@ -40,6 +41,8 @@ def build_model():
     model = Model ( inp , preds )
     model.compile ( loss = 'binary_crossentropy' , optimizer = Adam ( lr = 1e-3 ) , metrics = [ 'accuracy' ] )
     return model
+
+
 def train_model(model,input_train , out_train,input_val , output_val):
     batch_size = 256
     epochs = 7
@@ -55,8 +58,6 @@ def train_model(model,input_train , out_train,input_val , output_val):
                 epochs = epochs ,callbacks = callbacks_list, verbose = 1 )
     model.summary ( )
     model.save ( 'biLSTM.h5' )
-
-
 
 
 

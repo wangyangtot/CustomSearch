@@ -153,7 +153,7 @@ def train_model(model , input_train , topic_train , out_train , input_val , topi
     early = EarlyStopping ( monitor = "val_acc" , mode = "max" , patience = 5 )
     ra_val = RocAucEvaluation ( validation_data = ([input_val ,topic_val ], out_val) , interval = 1 )
     callbacks_list = [ ra_val , checkpoint , early ]
-    epochs = 7
+    epochs = 14
     batch_size = 521
     model.fit ( [ input_train , topic_train ] , out_train , epochs = epochs , batch_size = batch_size , verbose = 1 , \
                 validation_data = ([ input_val , topic_val ] , out_val),callbacks = callbacks_list, )
