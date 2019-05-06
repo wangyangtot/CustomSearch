@@ -5,9 +5,12 @@ Argument Spider is a web search engine to retrieve individual argumentative sent
 controversial topics.
 
 >[Argument Spider is running here](http://ec2-52-13-61-56.us-west-2.compute.amazonaws.com:5000/) 
- [![Watch the video](pig/youtubeUI.png)] (https://www.youtube.com/watch?v=RkMlVkBWQOs)
 
 >[Google Slides for introduction of Argument Spider](https://docs.google.com/presentation/d/165WDYcDfVdoiy8gR36nTCXvPcLT7KKlicLLaZxge7R0/edit#slide=id.g566ab6e222_0_81)
+
+> [Video for searching "self driving"](https://youtu.be/RkMlVkBWQOs)
+ [![Watch the video](pig/youtubeUI.png)](https://youtu.be/RkMlVkBWQOs)
+
 ## Screenshoot
 The results of searching "self driving" are below:
 ![](pig/self_driving_results.png)
