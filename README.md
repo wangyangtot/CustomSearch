@@ -5,7 +5,7 @@ Argument Spider is a web search engine to retrieve individual argumentative sent
 controversial topics.
 
 >[Argument Spider is running here](http://ec2-52-13-61-56.us-west-2.compute.amazonaws.com:5000/)  
->[Video for searching "self driving"](https://www.youtube.com/watch?v=wzz3-XftccY&feature=youtu.be)  
+>[Video for searching "self driving"](https://www.youtube.com/watch?v=RkMlVkBWQOs)  
 >[Google Slides for introduction of Argument Spider](https://docs.google.com/presentation/d/165WDYcDfVdoiy8gR36nTCXvPcLT7KKlicLLaZxge7R0/edit#slide=id.g566ab6e222_0_81)
 ## Screenshoot
 The results of searching "self driving" are below:
@@ -13,7 +13,7 @@ The results of searching "self driving" are below:
 
 The results could be divided into two parts: left part is the list of pro arguments and right is the 
 con arguments which are all extracted from the web pages.Besides, every argument comes with a URL to the original web page.
-More details could be found in the [Video](https://www.youtube.com/watch?v=wzz3-XftccY&feature=youtu.be)
+More details could be found in the [Video](https://www.youtube.com/watch?v=RkMlVkBWQOs)
 ## Table of Contents
 
 ## Introduction
@@ -104,7 +104,7 @@ be removed and keep the unique one.Google Came up with an algorithm [Detecting N
  But how to make use of vector comparison function? When a new document come up, 
  .is it necessary to compare it with all the documents which has been checked? if we have 2^34 pages,then the time to compare with every one will be
   ```
-  2^34=92 Billion
+  2^34=92 Billions
   ```
   Practically, When the documents hashed to 24-fingerprint,
  the hamming distance of near-duplicates usually less than 4. By virtue of Pigeonhole principle, if two documents are near-duplicates,when 
@@ -148,7 +148,7 @@ Algorithm is default ranking function in which the importance increases proporti
 Recent years, attention-based models have shown great success 
 in many NLP tasks such as machine translation, question answering,and recognizing textual entailments.
 Based on recurrent neural networks (RNN), 
-external attention information was added to hidden representations to get an attentive sentence representation.  
+external attention information was added to hidden representations to get an attentive sentence representation.   
 However, in the RNN architecture, a word is added at each time step and the hidden 
 state is updated recurrently, causing hidden states near the end of the sentence are expected to 
 capture more information, near the end of the sentence be more attended due to their 
@@ -165,12 +165,26 @@ the sentence representation. The words representation are weights according to q
   the weight t between 0 and 1.The above attention process could be thought as sentence 
   distillation where the input words are distilled (or filtered) by question attention.
    Finally,the whole sentence based on this distilled input can be presented using traditional RNN model Like LSTM,
-   biLSTM and GRU.
+   
+  Besides the attention mechanism to learn the relation or relevance between the sentence and a given topic,
+  the Cosine Simlarities can be calculated which is the Cosine of the each embedding word and the average embedding
+  of the topic, then cancatenate Cosine Simlarities to the word embedding.
   
   
-  The model is show below:
+  The four models  show below:
  
-![](pig/inner-att-biLSTM.png)
+![](pig/fourModels.png)
+
+The first one is the base biLSTM model without considering the topic into consideration, and other two models individually integrate 
+the Cosine Simlarities and Attention mechanisim, and the last one combine both the Cosine Simlarities and Attention mechanisim.
+
+the training results are here:
+![](pig/trainingREsults.png)
+
+Two metrics ROC_AUC and validate accuracy have been used to evaluate the models. it is obvious that when we include the information of topic
+into the model, there is a huge improvement.And the last one Inner-Attention biLSTM with Topic Similarity Features 
+which include the Cosine Simlarities and Attention mechanisim outperformed the others.
+
 
 
 ## Data source 
