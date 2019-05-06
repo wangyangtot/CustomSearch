@@ -16,15 +16,44 @@ from langdetect import detect
 import justext
 from simhash import Simhash
 import redis
+import yaml
 
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
+with open ( "../../yml_folder/spark.yaml" , 'r' ) as spark_yaml :
+    try :
+        SPARK_settings = yaml.load ( spark_yaml )
 
+    except yaml.YAMLError as exc :
+        print
+        exc
+
+# load settings.yaml for elastic search
+with open ( "../../yml_folder/ES.yaml" , 'r' ) as ES_yaml :
+    try :
+        ES_settings = yaml.load ( ES_yaml )
+
+    except yaml.YAMLError as exc :
+        print
+        exc
+
+with open ( "../../yml_folder/Redis.yaml" , 'r' ) as ES_yaml :
+    try :
+        Redis_settings = yaml.load ( Redis_yaml )
+
+    except yaml.YAMLError as exc :
+        print
+        exc
 
 class CCSparkJob ( object ) :
     """
-    A simple Spark job definition to process Common Crawl data
+    A  Spark job definition to ingest data from Common Crawl data,remove the boilerplate, language identification,
+    deduplication and buck wrote to Elasticsearch.
     """
+
+    ## read the setting of spark,elasticsearch and Redis
+
+
 
     name = 'CCSparkJob'
     fallback_server_name = '(no server in HTTP header)'
@@ -45,8 +74,8 @@ class CCSparkJob ( object ) :
     num_output_partitions = 10
     ALLOWED_CONTENT_TYPES = {"application/http; msgtype=response" , "message/http"}
     DESIRED_LANGUAGE = 'en'
-    ES_INDEX = 'commoncrawls'
-    ES_TYPE = 'plainDocs'
+    ES_INDEX =  ES_settings[ 'ES_index' ]
+    ES_TYPE = ES_settings[ 'ES_type' ]
     k=3
     f=64
     def parse_arguments(self) :
@@ -142,13 +171,14 @@ class CCSparkJob ( object ) :
             appName = self.name ,
             conf = conf )
 
-        ES_hosts = 'ec2-52-34-223-218.us-west-2.compute.amazonaws.com'
-        ES_user = 'elastic'
-        ES_password = 'elasticdevpass'
+        ES_hosts = ES_settings[ 'ES_hosts' ]
+        ES_user = ES_settings[ 'ES_user' ]
+        ES_password = ES_settings[ 'ES_password' ]
 
         es = Elasticsearch ( host = ES_hosts , http_auth = (ES_user , ES_password) ,
                              verify_certs = False )
         if not es.indices.exists ( self.ES_INDEX ) :
+
             analyszer_setting = {
                 "filter" : {
                     "custom_shingle_filter" : {
@@ -185,9 +215,9 @@ class CCSparkJob ( object ) :
             response = es.indices.create ( index = self.ES_INDEX ,
                                            body = {'settings' : es_settings , 'mappings' : es_mapping} )
 
-        redis_host = 'ec2-34-220-60-167.us-west-2.compute.amazonaws.com'
-        redis_port = 6379
-        redis_password = 'redispass'
+        redis_host = Redis_settings['redis_host']
+        redis_port = Redis_settings['redis_port']
+        redis_password = Redis_settings['redis_password']
         redisClient = redis.Redis ( host = redis_host , port = redis_port , password = redis_password )
 
         self.init_accumulators ( sc )
@@ -218,10 +248,18 @@ class CCSparkJob ( object ) :
         input_data = sc.textFile ( self.args.input ,
                                    minPartitions = self.args.num_input_partitions )
         ES_RESOURCE = '/'.join ( [ self.ES_INDEX , self.ES_TYPE ] )
-        es_conf = {'es.nodes' : 'ec2-52-34-223-218.us-west-2.compute.amazonaws.com' ,
+        ES_NODES = ES_settings[ 'ES_hosts' ]
+
+        ES_INDEX = ES_settings[ 'ES_index' ]
+
+        ES_TYPE = ES_settings[ 'ES_type' ]
+
+        ES_RESOURCE = '/'.join ( [ ES_INDEX , ES_TYPE ] )
+
+        es_conf = {'es.nodes' : ES_NODES,
                    'es.resource' : ES_RESOURCE ,
-                   'es.port' : '9200' , 'es.net.http.auth.user' : 'elastic' ,
-                   'es.net.http.auth.pass' : 'elasticdevpass' ,
+                   'es.port' : '9200' , 'es.net.http.auth.user' : ES_settings['ES_user'] ,
+                   'es.net.http.auth.pass' : ES_settings['ES_password'] ,
                    'es.nodes.wan.only' : 'true' ,
                    'es.input.json' : 'yes'}
         input_data.mapPartitionsWithIndex (self.process_warcs ) \
@@ -237,9 +275,9 @@ class CCSparkJob ( object ) :
     def process_warcs(self, id_ , iterator) :
         s3pattern = re.compile ( '^s3://([^/]+)/(.+)' )
         base_dir = os.path.abspath ( os.path.dirname ( __file__ ) )
-        redis_host = 'ec2-34-220-60-167.us-west-2.compute.amazonaws.com'
-        redis_port = 6379
-        redis_password = 'redispass'
+        redis_host = Redis_settings['redis_host']
+        redis_port = Redis_settings['redis_port']
+        redis_password = Redis_settings['redis_password']
         redisClient = redis.Redis ( host = redis_host , port = redis_port , password = redis_password )
 
         # S3 client (not thread-safe, initialize outside parallelized loop)
@@ -302,9 +340,6 @@ class CCSparkJob ( object ) :
 
 
     def _ignoreWARCRecord(self , record) :
-        # print ( record.rec_type )
-        # print ( record.content_type )
-        # print ( record.length )
 
         if record.rec_type != 'response' :
             return True
@@ -368,8 +403,6 @@ class CCSparkJob ( object ) :
             if redisClient.exists(key):
                 dups = redisClient.lrange ( key,0,-1 )
                 #self.log.debug ( 'key:%s' , key )
-                if len ( dups ) > 200 :
-                    self.log.warning ( 'Big bucket found. key:%s, len:%s' , key , len ( dups ) )
                 for dup in dups :
                     sim2 = Simhash ( long ( dup , 16 ) , self.f )
                     d = simhash.distance ( sim2 )

@@ -5,6 +5,8 @@ import justext
 #from elasticsearch import Elasticsearch
 from sparkcc import CCSparkJob
 
+
+
 class sparkPreprocess(CCSparkJob):
     """ Count server names sent in HTTP response header
             (WARC and WAT is allowed as input)"""

@@ -24,7 +24,8 @@ LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
 class CCSparkJob(object):
     """
-    A simple Spark job definition to process Common Crawl data
+    A simple Spark job definition to ingest data from Common Crawl data,remove the boilerplate, language identification,
+    deduplication and buck wrote to Elasticsearch.
     """
 
     name = 'CCSparkJob'
@@ -129,7 +130,6 @@ class CCSparkJob(object):
         sc = SparkContext(
             appName=self.name,
             conf=conf)
-        #sqlc = SQLContext(sparkContext=sc)
 
         self.init_accumulators(sc)
 
