@@ -9,13 +9,14 @@ import pandas as pd
 from keras import backend as K
 import keras as ks
 nltk.download('punkt')
-ES_settings={
-    'ES_hosts':'ec2-52-34-223-218.us-west-2.compute.amazonaws.com',
-'ES_user':'elastic',
-'ES_password':'elasticdevpass',
-    'ES_type':'plainDocs',
-    'ES_index':'extractccs'
-}
+# load settings.yaml for elastic search
+with open ( "../../yml_folder/ES.yaml" , 'r' ) as ES_yaml :
+    try :
+        ES_settings = yaml.load ( ES_yaml )
+
+    except yaml.YAMLError as exc :
+        print
+        exc
 
 
 
@@ -41,7 +42,7 @@ def connect_to_elasticsearch(ES_settings):
                 "doc" : search_text
             }
         } ,
-        "size" : 30
+        "size" : 200
 
     }
                            )
